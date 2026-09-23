@@ -2,7 +2,7 @@
 
 __version__ = "1.0.0"
 
-from education_kg.models import Concept, Relation, LearningPath, Quiz, QuizQuestion
+from education_kg.models import Concept, Relation, LearningPath, Quiz, QuizQuestion, Resource, ResourceType
 from education_kg.graph import KnowledgeGraph
 from education_kg.entity_extractor import EntityExtractor
 from education_kg.relation_extractor import RelationExtractor
@@ -12,6 +12,7 @@ from education_kg.quiz_generator import QuizGenerator
 from education_kg.multilang import MultiLanguageSupport
 from education_kg.storage import GraphStorage
 from education_kg.pipeline import Pipeline
+from education_kg.seed_data import build_curriculum_graph
 
 __all__ = [
     "KnowledgeGraph",
@@ -20,6 +21,8 @@ __all__ = [
     "LearningPath",
     "Quiz",
     "QuizQuestion",
+    "Resource",
+    "ResourceType",
     "EntityExtractor",
     "RelationExtractor",
     "ReasoningEngine",
@@ -28,4 +31,5 @@ __all__ = [
     "MultiLanguageSupport",
     "GraphStorage",
     "Pipeline",
+    "build_curriculum_graph",
 ]

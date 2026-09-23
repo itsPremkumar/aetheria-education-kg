@@ -20,6 +20,42 @@ class RelationType(Enum):
     RELATEDTO = "related_to"
     PARTOF = "part_of"
     LEADSTO = "leads_to"
+    SAMEAS = "same_as"
+    EXAMPLEOF = "example_of"
+    ASSESSEDBY = "assessed_by"
+
+
+class ResourceType(Enum):
+    VIDEO = "video"
+    ARTICLE = "article"
+    BOOK = "book"
+    EXERCISE = "exercise"
+    COURSE = "course"
+    INTERACTIVE = "interactive"
+
+
+@dataclass
+class Resource:
+    """A learning resource attached to a concept (videos, books, exercises)."""
+
+    id: str
+    title: str
+    url: str = ""
+    resource_type: ResourceType = ResourceType.ARTICLE
+    concepts: list[str] = field(default_factory=list)
+    estimated_minutes: float = 0.0
+    metadata: dict[str, Any] = field(default_factory=dict)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "title": self.title,
+            "url": self.url,
+            "resource_type": self.resource_type.value,
+            "concepts": self.concepts,
+            "estimated_minutes": self.estimated_minutes,
+            "metadata": self.metadata,
+        }
 
 
 @dataclass

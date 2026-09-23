@@ -13,6 +13,7 @@ from education_kg.models import (
     LearningPath,
     Relation,
     RelationType,
+    Resource,
 )
 
 
@@ -23,6 +24,7 @@ class KnowledgeGraph:
         self._concepts: dict[str, Concept] = {}
         self._relations: dict[str, list[Relation]] = defaultdict(list)
         self._reverse_relations: dict[str, list[Relation]] = defaultdict(list)
+        self._resources: dict[str, Resource] = {}
 
     def add_concept(self, concept: Concept) -> None:
         """Add a concept to the graph."""
@@ -40,6 +42,25 @@ class KnowledgeGraph:
         """Add a relation between concepts."""
         self._relations[relation.source_id].append(relation)
         self._reverse_relations[relation.target_id].append(relation)
+
+    def add_resource(self, resource: Resource) -> None:
+        """Attach a learning resource to the graph."""
+        self._resources[resource.id] = resource
+
+    def get_resource(self, resource_id: str) -> Resource | None:
+        """Get a resource by ID."""
+        return self._resources.get(resource_id)
+
+    def get_resources_for_concept(self, concept_id: str) -> list[Resource]:
+        """Get all resources attached to a concept."""
+        return [
+            r for r in self._resources.values()
+            if concept_id in r.concepts
+        ]
+
+    def get_all_resources(self) -> list[Resource]:
+        """Get all resources."""
+        return list(self._resources.values())
 
     def get_relations(self, concept_id: str) -> list[Relation]:
         """Get all relations from a concept."""
@@ -96,19 +117,77 @@ class KnowledgeGraph:
 
         return None
 
-    def topological_sort(self) -> list[str]:
-        """Topological sort based on prerequisite relations."""
+    def has_prerequisite_cycle(self) -> bool:
+        """Detect cycles in the prerequisite subgraph (Kahn's algorithm)."""
         in_degree = defaultdict(int)
         for concept_id in self._concepts:
-            if concept_id not in in_degree:
-                in_degree[concept_id] = 0
-
+            in_degree[concept_id] = 0
         for rels in self._relations.values():
             for rel in rels:
                 if rel.relation_type == RelationType.PREREQUISITE:
                     in_degree[rel.target_id] += 1
 
         queue = deque([cid for cid, deg in in_degree.items() if deg == 0])
+        processed = 0
+
+        while queue:
+            current = queue.popleft()
+            processed += 1
+            for rel in self._relations.get(current, []):
+                if rel.relation_type == RelationType.PREREQUISITE:
+                    in_degree[rel.target_id] -= 1
+                    if in_degree[rel.target_id] == 0:
+                        queue.append(rel.target_id)
+
+        return processed != len(self._concepts)
+
+    def find_prerequisite_cycles(self) -> list[list[str]]:
+        """Find all prerequisite cycles (each returned as a list of concept ids)."""
+        WHITE, GRAY, BLACK = 0, 1, 2
+        color = {cid: WHITE for cid in self._concepts}
+        cycles: list[list[str]] = []
+        stack: list[str] = []
+
+        def visit(node: str) -> None:
+            color[node] = GRAY
+            stack.append(node)
+            for rel in self._relations.get(node, []):
+                if rel.relation_type != RelationType.PREREQUISITE:
+                    continue
+                target = rel.target_id
+                if target not in self._concepts:
+                    continue
+                if color[target] == GRAY:
+                    # Found a cycle: slice the current stack from target onward
+                    idx = stack.index(target)
+                    cycles.append(stack[idx:])
+                elif color[target] == WHITE:
+                    visit(target)
+            stack.pop()
+            color[node] = BLACK
+
+        for cid in list(self._concepts):
+            if color[cid] == WHITE:
+                visit(cid)
+
+        return cycles
+
+    def topological_sort(self) -> list[str]:
+        """Topological sort based on prerequisite relations (Kahn's algorithm).
+
+        If the prerequisite subgraph contains a cycle, cyclic nodes are
+        omitted from the result rather than blocking ordering of the rest.
+        """
+        in_degree = defaultdict(int)
+        for concept_id in self._concepts:
+            in_degree[concept_id] = 0
+
+        for rels in self._relations.values():
+            for rel in rels:
+                if rel.relation_type == RelationType.PREREQUISITE:
+                    in_degree[rel.target_id] += 1
+
+        queue = deque(sorted(cid for cid, deg in in_degree.items() if deg == 0))
         result = []
 
         while queue:
